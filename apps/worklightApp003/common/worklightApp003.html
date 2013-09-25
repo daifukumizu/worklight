@@ -1,0 +1,503 @@
+<!DOCTYPE HTML>
+<html>
+    	<head>
+    		<meta charset="UTF-8">
+    		<title>worklightApp001</title>
+    		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=0">
+    		<link rel="shortcut icon" href="images/favicon.png">
+    		<link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+    		<link href="jqueryMobile/jquery.mobile.theme-1.3.1.css" rel="stylesheet">
+    		<link href="jqueryMobile/jquery.mobile-1.3.1.css" rel="stylesheet">
+    		<link href="jqueryMobile/jquery.mobile.structure-1.3.1.css" rel="stylesheet">
+    		<link rel="stylesheet" href="css/themes/themeroller001.css" >
+    		<script>window.$ = window.jQuery = WLJQ;</script>
+    		<script src="jqueryMobile/jquery.mobile-1.3.1.js"></script>
+
+            <script type="text/javascript" charset="utf-8">
+                    // オリジナル機能宣言部分
+                    // 軸の計測結果用変数の宣言部分
+                    var x,y,z;
+                    
+                    // watch ID が現在の `watchAcceleration` を参照
+                    var watchID = null;
+                    
+                    var standard_x = 0; //測定値
+                    var standard_y = 0; //測定値
+                    var standard_z = 0; //測定値
+                    
+                    var x_goukei = 0;
+                    var y_goukei = 0;
+                    var z_goukei = 0;
+                    
+                    var time_count = 0;
+                      
+                    var now_x = 0; //測定値
+                    var now_y = 0; //測定値
+                    var now_z = 0; //測定値
+                
+                    var count_x = 0; //カウント変数
+                    
+                    var hantei_x = 0; //x軸判定値
+                    var hantei_y = 0; //y軸判定値
+                    var hantei_z = 0; //z軸判定値
+   
+                    //Cordoba読み込み待機部分　【ここから】
+                    // Cordova の読み込み完了まで待機
+                    //
+                    document.addEventListener("deviceready", onDeviceReady, false);
+                    
+                    // Cordova 準備完了
+                    //
+                    function onDeviceReady() {
+                        window.alert ('ようこそ姿勢矯正アプリへ');
+                        
+                    }
+                    //Cordoba読み込み待機部分　【ここまで】
+                    
+                    
+                    //加速度測定機能　【ここから】
+                    
+                    // 加速度情報を1秒ごとに取得
+                    function addEvent(){
+                        window.alert ('5秒後にバイブとともに取得開始します');
+                        loopWait(5000);
+                        vibrate();
+                        var initOptions = { frequency: 1000 };
+                        watchID = navigator.accelerometer.watchAcceleration(initOnSuccess, initOnError, initOptions);
+                    }
+                    
+                    // onSuccess: 現在の加速度情報を取得
+                    // 1秒間隔で5秒間測定し、その平均値を基準値として、sessionStorageに保存
+                    function initOnSuccess(acceleration) {
+                        
+                        x_goukei += acceleration.x;
+                        y_goukei += acceleration.y;
+                        z_goukei += acceleration.z;
+                        
+                        time_count++;
+                        
+                        if (time_count === 5){
+                            stopWatch();
+                            
+                            standard_x = (x_goukei / 5);
+                            standard_y = (y_goukei / 5);
+                            standard_z = (z_goukei / 5);
+                            
+                            insert(standard_x,standard_y,standard_z);
+                        }
+                    }
+                    
+                    // onError: 加速度情報の取得に失敗
+                    //
+                    function initOnError() {
+                        alert('エラーが発生しました。');
+                    }
+                    
+                    // 加速度情報の監視を停止
+                    //
+                    function stopWatch() {
+                        if (watchID) {
+                            navigator.accelerometer.clearWatch(watchID);
+                            watchID = null;
+                        }
+                    }
+                    //加速度測定機能　【ここまで】
+                    
+                    //WebStorage機能　【ここから】
+                    //sessionStorageへの保存
+                    function insert(x,y,z){
+                        if (sessionStorage) {
+                            sessionStorage.setItem('x_base', x);
+                            sessionStorage.setItem('y_base', y);
+                            sessionStorage.setItem('z_base', z);
+                            
+                            window.alert("初期計測をsessionStorageに格納完了");
+                        }else{
+                            window.alert("sessionStorage対応ブラウザでアクセスし直してください。");
+                        }
+                    }
+                    
+                    //sessionStorageからの取り出し
+                    function test_select(){
+                        var x_defalte = sessionStorage.getItem('x_base');
+                        var y_defalte = sessionStorage.getItem('y_base');
+                        var z_defalte = sessionStorage.getItem('z_base');
+                        if (x_defalte === null || y_defalte === null || z_defalte === null){
+                            //確認ダイアログ表示
+                            showConfirm();
+                            
+                            window.alert('測定しなおしてください。');
+                        }else{
+                            window.alert('x軸:' + x_defalte);
+                            window.alert('y軸:' + y_defalte);
+                            window.alert('z軸:' + z_defalte);
+                        }
+                    }
+                    //WebStorage機能　【ここまで】
+                    
+                    //確認ダイアログ表示機能　【ここから】
+                    // カスタム確認ダイアログを表示
+                    function showConfirm() {
+                        navigator.notification.confirm(
+	                        '測定し直しますか？', // メッセージ
+	                        onConfirm, // 選択されたボタン情報とともに呼ばれるコールバック関数
+	                        '測定エラー', // タイトル
+	                        'しない,する' // ボタン
+	                        );
+                    }
+                    
+                    // 確認ダイアログの表示プロセスの開始
+                    function onConfirm(buttonIndex) {
+                        if(buttonIndex == 1) {
+                            window.alert('利用ありがとうございました。');
+                        } else {
+                            addEvent();                
+                        }
+                    }
+                    //確認ダイアログ表示機能　【ここまで】
+                    
+                    //ループを使ったwait関数【ここから】
+                    
+                    function loopWait( timeWait )
+                    {
+                        var timeStart = new Date().getTime();
+                        var timeNow = new Date().getTime();
+                        while( timeNow < (timeStart + timeWait ) )
+                        {
+                            timeNow = new Date().getTime();
+                        }
+                        return;
+                    }
+                    //ループを使ったwait関数【ここまで】
+
+		            //警告音機能【ここから】
+		            // 警告音をx回鳴らす
+		            //iphoneだと回数は無視されます
+		            //iphoneで鳴らす場合beep.wavをwww/に置きます
+		            function playBeep() {
+		                navigator.notification.beep(1);
+		            }
+		            //警告音機能【ここまで】
+
+		            //バイブレーション機能【ここから】
+		            // 2秒間バイブレーションさせます
+		            //iphoneだとXXXXmsの指定は無視されます
+		            function vibrate() {
+		                navigator.notification.vibrate(2000);
+		            }
+		            //バイブレーション機能【ここまで】    
+
+                    // 初期測定結果取り出し部分　【ここから】
+                    //sessionStorageからの取り出し
+                    function select(){
+                        standard_x = sessionStorage.getItem('x_base');
+                        standard_y = sessionStorage.getItem('y_base');
+                        standard_z = sessionStorage.getItem('z_base');
+                        if (standard_x === null || standard_y === null || standard_z === null){
+                            window.alert('エラー、初期測定をやり直してください。');
+                        }
+                    }
+                    
+                    // 初期測定結果取り出し部分　【ここまで】
+                    
+                    // 測定機能部分　【ここから】
+                    
+                    // 加速度情報の監視を開始
+                    //
+                    function startWatch() {
+                    	select();
+		                alert('5秒後に姿勢矯正を開始します。');
+		                loopWait(5000);
+		                vibrate();                    	
+                        // 加速度情報を3秒ごとに更新
+                        var options = { frequency: 3000 };
+                        watchID = navigator.accelerometer.watchAcceleration(onSuccess, onError, options);
+                    }
+                    
+                    // onSuccess: 現在の加速度情報を取得
+                    //
+                    function onSuccess(acceleration) {
+                        
+                        now_x = acceleration.x;
+                        now_y = acceleration.y;
+                        now_z = acceleration.z;
+                        
+                        //傾き判定機能呼び出し
+                        calculation();
+                    }
+                    
+                    // onError: 加速度情報の取得に失敗
+                    //
+                    function onError() {
+                        alert('エラーが発生しました。');
+                    }
+                    
+                    // 加速度情報の監視を停止
+                    //
+                    function stopWatch() {
+                        if (watchID) {
+                            navigator.accelerometer.clearWatch(watchID);
+                            watchID = null;
+                        }
+                    }
+                    // 測定機能部分　【ここまで】
+                    
+                    //傾き判定機能【ここから】
+                    // calculation: 加速度情報を計算 閾値オーバーでストップ
+                    //
+                    function calculation() {
+                        
+                        //x,y,z軸が初期測定値から +1,-1傾いた状態で、3回以上（9秒間）傾いた場合、アラートよびだし。
+                        
+                        hantei_x = (now_x - standard_x);
+                        hantei_y = (now_y - standard_y);
+                        hantei_z = (now_z - standard_z);
+                        
+                        if(hantei_x > 1 || hantei_x < -1
+                           || hantei_y > 1 || hantei_y < -1
+                           || hantei_z > 1 || hantei_z < -1
+                           ){
+                            count_x++;
+                            
+                            //条件に該当した場合は、バイブレーションで知らせる。
+                            vibrate();
+                            
+                            if(count_x >= 3){
+                                //計測ストップ
+                                stopWatch();
+                                
+                                //条件に該当した場合は、バイブレーションで知らせる。
+                                playBeep();
+                                vibrate();
+                                //【機能確認用】測定値表示
+                                window.alert("閾値オーバー");
+                                window.alert("初期測定値 x=" + standard_x +"最終測定値 x=" + now_x);
+                                window.alert("初期測定値 y=" + standard_y +"最終測定値 y=" + now_y);
+                                window.alert("初期測定値 z=" + standard_z +"最終測定値 z=" + now_z);
+                                
+                                //通知ダイアログ呼び出し
+                                //showAlert();
+                                
+                                //【未実装部分】ここに測定時間も表示したい
+                                //
+                            }
+                        }else{
+                            count_x = 0;
+                        }    
+                    }
+                    //傾き判定機能【ここまで】
+                    
+					
+				//うたた寝機能ここから
+		            var utatane_now_x = 0; //測定値
+		            var utatane_now_y = 0; //測定値
+		            var utatane_now_z = 0; //測定値
+		            var utatane_standard_x = 0; //測定値
+		            var utatane_standard_y = 0; //測定値
+		            var utatane_standard_z = 0; //測定値
+		            
+		            var utatane_count_x = 0; //カウント変数
+		            var utatane_count = 0;
+		            
+		            var utatane_hantei_x = 0; //x軸判定値1
+		            var utatane_hantei_y = 0; //y軸判定値1
+		            var utatane_hantei_z = 0; //z軸判定値1
+		            
+		            var utatane_hantei2_x = 0; //x軸判定値2
+		            var utatane_hantei2_y = 0; //y軸判定値2
+		            var utatane_hantei2_z = 0; //z軸判定値2
+		            
+		            var utatane_hantei3_x = 0; //x軸判定値3
+		            var utatane_hantei3_y = 0; //y軸判定値3
+		            var utatane_hantei3_z = 0; //z軸判定値3
+		            
+		            // 初期測定結果取り出し部分　【ここから】
+		            //sessionStorageからの取り出し
+		            function utatane_select(){
+		                utatane_standard_x = sessionStorage.getItem('x_base');
+		                utatane_standard_y = sessionStorage.getItem('y_base');
+		                utatane_standard_z = sessionStorage.getItem('z_base');
+		                if (utatane_standard_x === null || utatane_standard_y === null || utatane_standard_z === null){
+		                    window.alert('エラー 初期測定をやり直してください。');
+		                }
+		            }
+		            
+		            // 初期測定結果取り出し部分　【ここまで】
+		            
+		            // うたた寝の測定機能部分　【ここから】
+		            
+		            // 加速度情報の監視を開始
+		            //
+		            function utatane_watch() {
+		            	utatane_select();
+		                alert('5秒後にうたた寝検知を開始します。');
+		                loopWait(5000);
+		                vibrate();
+		                watchID = null;
+		                // 1秒ごとに加速度情報を更新
+		                var utataneOptions = { frequency: 1000 };
+		                watchID = navigator.accelerometer.watchAcceleration(utataneOnSuccess, utataneOnError, utataneOptions);
+		            }
+		            
+		            // utataneOnSuccess: 現在の加速度情報を取得
+		            //
+		            function utataneOnSuccess(acceleration) {                
+		                utatane_now_x = acceleration.x;
+		                utatane_now_y = acceleration.y;
+		                utatane_now_z = acceleration.z;
+		                
+		                //うたた寝判定機能呼び出し
+		                utatane_calculation();
+		            }
+		            
+		            // utataneOnError: 加速度情報の取得に失敗
+		            //
+		            function utataneOnError() {
+		                alert('うたた寝検知中にエラーが発生しました。');
+		            }
+		            
+		            // 測定機能部分　【ここまで】
+		            
+		            //傾き判定機能【ここから】
+		            // utatane_calculation: うたた寝してそうな加速度情報を計算
+		            //身体の揺れを検知するために、
+		            //2秒間ごとの初期値との差分hantei、3秒間ごとの初期値との差分hantei2をだし、
+		            //hanteiとhantei2との差分がしきい値を超えるとうたた寝と判断
+		            function utatane_calculation() {
+		                
+		                utatane_count++;
+		                
+		                //            window.alert("utatane_count値：" + utatane_count);
+		                //            window.alert("utatane_count mod(3)値：" + utatane_count%3);
+		                //2回に1回動く
+		                if (utatane_count%2==0) {
+		                    utatane_hantei_x = (utatane_now_x - utatane_standard_x);
+		                    utatane_hantei_y = (utatane_now_y - utatane_standard_y);
+		                    utatane_hantei_z = (utatane_now_z - utatane_standard_z);
+		                }
+		                
+		                //3回に1回動く
+		                if (utatane_count%3==0) {
+		                    utatane_hantei2_x = (utatane_now_x - utatane_standard_x);
+		                    utatane_hantei2_y = (utatane_now_y - utatane_standard_y);
+		                    utatane_hantei2_z = (utatane_now_z - utatane_standard_z);
+		                }
+		                
+		                utatane_hantei3_x = 100*(utatane_hantei2_x - utatane_hantei_x);
+		                utatane_hantei3_y = 100*(utatane_hantei2_y - utatane_hantei_y);
+		                utatane_hantei3_z = 100*(utatane_hantei2_z - utatane_hantei_z);
+
+	                    alert("hantei_x:" + utatane_hantei3_x + "hantei_y:" + utatane_hantei3_y + "hantei_z:" + utatane_hantei3_z );
+		                
+		                //スライダー値をインプット
+		                var utatane_slider = $("#slider").val();
+		                
+		                //
+		                if(utatane_hantei3_x > utatane_slider || utatane_hantei3_x < -(utatane_slider)
+		                   || utatane_hantei_y > utatane_slider || utatane_hantei3_y < -(utatane_slider)
+		                   || utatane_hantei_z > utatane_slider || utatane_hantei3_z < -(utatane_slider)
+		                   ){
+		                    utatane_count_x++;
+		                    
+		                    if(utatane_count_x >= 5){
+		                        //計測ストップ
+		                        stopWatch();
+		                        
+		                        //条件に該当した場合は、バイブレーションで知らせる。
+		                        vibrate();
+		                        
+		                        //条件に該当した場合は、ビープ音で知らせる。
+		                        //playBeep();
+		                        
+		                        //【機能確認用】測定値表示
+		                        window.alert("うたた寝しましたね？");
+		                        //window.alert("初期測定値 x=" + utatane_standard_x +" うたた寝した時の測定値 x=" + utatane_now_x);
+		                        //window.alert("初期測定値 y=" + utatane_standard_y +" うたた寝した時の測定値 y=" + utatane_now_y);
+		                        //window.alert("初期測定値 z=" + utatane_standard_z +" うたた寝した時の測定値 z=" + utatane_now_z);
+		                        window.alert("判定値 x=" + utatane_hantei3_x +" スライダー=" + utatane_slider);
+		                        window.alert("判定値 y=" + utatane_hantei3_y);
+		                        window.alert("判定値 z=" + utatane_hantei3_z);
+
+		                        
+		                        //count初期化
+		                        utatane_count_x = 0;	                        
+		                    }
+		                }else{
+		                    utatane_count_x = 0;
+		                }    
+		            }
+				//うたた寝機能ここまで					            
+            </script>
+
+    	</head>
+    	<body id="content" style="display: none;">
+    		<div data-role="page" id="main_page">
+		        <div data-role="header" data-position="fixed"><h1>姿勢矯正アプリ</h1></div>
+    			<div data-role="content" style="padding: 15px">
+    				<!--application UI goes here-->
+			       <br><br>
+			       このアプリは姿勢を矯正し、健康維持を促進するためのものです。<br>
+			       はじめに初期計測を行い、正しい姿勢をインプットしてください。<br>
+			
+					<button onclick="addEvent()">初期計測スタート</button>
+		            <!--以下のボタンは完成版では削除予定（機能確認のためだけに用意）-->
+		            <button onclick="test_select()">初期測定の結果表示</button>
+				</div>
+		<textarea id="textarea">utatane_hantei3_x</textarea>
+		<div data-role="footer" data-position="fixed">  
+					<div data-role="navbar" id="main_navbar">
+						<ul>
+							<li><a href="#main_page" id="item" class="ui-btn-active ui-state-persist">Main</a></li>
+							<li><a href="#balance_page" id="item0">姿勢矯正</a></li>
+							<li><a href="#utatane_page" id="item1">うたた寝</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+    		<div data-role="page" id="balance_page">
+		        <div data-role="header" data-position="fixed"><h1>姿勢矯正アプリ</h1></div>
+    			<div data-role="content" style="padding: 15px">
+    				<!--application UI goes here-->
+			       <br><br> 
+		            <button onclick="startWatch()">姿勢矯正スタート</button>
+		            <button onclick="stopWatch()">姿勢矯正ストップ</button>
+			       
+		       </div>
+     			<div data-role="footer" data-position="fixed">  
+					<div data-role="navbar" id="balance_navbar">
+						<ul>
+							<li><a href="#main_page" id="item">Main</a></li>
+							<li><a href="#balance_page" id="item0"  class="ui-btn-active ui-state-persist">姿勢矯正</a></li>
+							<li><a href="#utatane_page" id="item1">うたた寝</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+
+    		<div data-role="page" id="utatane_page">
+		        <div data-role="header" data-position="fixed"><h1>うたた寝検知</h1></div>
+    			<div data-role="content" style="padding: 15px">
+    				<!--application UI goes here-->
+		            <button onclick="utatane_watch()">うたた寝検機能スタート</button>
+		            <label for="slider">感度スライダー</label><input type="range" name="slider" id="slider" value="50" min="1" max="99">
+		            
+		            <button onclick="stopWatch()">うたた寝検知機能ストップ</button>
+
+     			</div>
+				<div data-role="footer" data-position="fixed">  
+					<div data-role="navbar" id="utatane_navbar">
+						<ul>
+							<li><a href="#main_page" id="item">Main</a></li>
+							<li><a href="#balance_page" id="item0">姿勢矯正</a></li>
+							<li><a href="#utatane_page" id="item1" class="ui-btn-active ui-state-persist">うたた寝</a></li>
+						</ul>
+					</div>
+				</div>
+			</div>
+
+    		<!--worklight js-->
+    		<script src="js/initOptions.js"></script>
+    		<script src="js/worklighApp003.js"></script>
+    		<script src="js/messages.js"></script>
+    	</body>
+</html>
